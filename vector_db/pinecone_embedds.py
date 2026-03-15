@@ -42,6 +42,13 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         raise RuntimeError(f"Embedding error: {results.error}")
     return results.output
 
+def clear_by_namespace(github_url : str):
+    index = pc.Index(PINECONE_INDEX)
+    namespace = get_namespace(github_url)
+    index.delete(delete_all=True, namespace=namespace)
+    print(f"Deleted all vectors in {namespace}")
+
+
 def embed_and_store(chunks: list[dict], github_url: str):
     index = get_or_create_index()
     total = len(chunks)
@@ -64,13 +71,14 @@ def embed_and_store(chunks: list[dict], github_url: str):
         total_batches = (total + BATCH_SIZE - 1) // BATCH_SIZE
         print(f"Upserted batch {batch_num}/{total_batches}  ({len(batch)} chunks)")
     print(f"\nDone — {total} chunks stored in Pinecone index '{PINECONE_INDEX}'")
+
 def ask(question: str, github_url: str):
     index = pc.Index(PINECONE_INDEX)
 
     q_vector = embed_texts([question])[0]
 
     # search pinecone for top 5 most relevant chunks
-    results = index.query(vector=q_vector, top_k=7, namespace=get_namespace(url), include_metadata=True)
+    results = index.query(vector=q_vector, top_k=7, namespace=get_namespace(github_url=github_url), include_metadata=True)
 
     context = "\n\n".join([
         f"File: {m['metadata']['source']}\n{m['metadata']['text']}"
