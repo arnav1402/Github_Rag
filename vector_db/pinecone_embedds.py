@@ -100,7 +100,10 @@ def ask(question: str, github_url: str):
     if response.error:
         raise RuntimeError(f"LLM error: {response.error}")
 
-    return response.output
+    output = response.output
+    if isinstance(output, dict):
+        output = output.get("content") or str(output)
+    return output
 
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
