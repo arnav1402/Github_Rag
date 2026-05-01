@@ -1,7 +1,15 @@
 # GitHub RAG (Retrieval-Augmented Generation)
 
+### Query using GROQ on Pinecode vector DB
+
 ![Query UI 1](assets/query_rag1.png)
+
+### Query using GROQ on Pinecode vector DB
+
 ![Query UI 2](assets/query_rag2.png)
+
+### Server Logs for Vector Embeddings
+
 ![Server Logs](assets/server_log.png)
 
 ---
