@@ -1,6 +1,8 @@
 import os, sys
 from dotenv import load_dotenv
-from bytez import Bytez
+# from bytez import Bytez
+from groq import Groq
+from sentence_transformers import SentenceTransformer
 from pinecone import Pinecone, ServerlessSpec
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -10,11 +12,11 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX   = os.getenv("PINECONE_INDEX", "gitrag")
 PINECONE_CLOUD   = os.getenv("PINECONE_CLOUD", "aws")
 PINECONE_REGION  = os.getenv("PINECONE_REGION", "us-east-1")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-sdk = Bytez(BYTEZ_API_KEY)
 pc  = Pinecone(api_key=PINECONE_API_KEY)
 
-EMBED_MODEL = "sentence-transformers/all-mpnet-base-v2"  # outputs 768
+EMBED_MODEL = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")  # outputs 768
 DIMENSION   = 768
 BATCH_SIZE    = 32
  
@@ -35,12 +37,11 @@ def get_or_create_index() -> object:
         print(f"Using existing index: {PINECONE_INDEX}")
     return pc.Index(PINECONE_INDEX)
 
+# _embed_model = sdk.model(EMBED_MODEL)
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    embed_model = sdk.model(EMBED_MODEL)
-    results = embed_model.run(texts)
-    if results.error:
-        raise RuntimeError(f"Embedding error: {results.error}")
-    return results.output
+    embeddings = EMBED_MODEL.encode(texts, convert_to_numpy=True)
+    return embeddings.tolist()
 
 def clear_by_namespace(github_url : str):
     index = pc.Index(PINECONE_INDEX)
@@ -72,38 +73,45 @@ def embed_and_store(chunks: list[dict], github_url: str):
         print(f"Upserted batch {batch_num}/{total_batches}  ({len(batch)} chunks)")
     print(f"\nDone — {total} chunks stored in Pinecone index '{PINECONE_INDEX}'")
 
+# _llm = sdk.model("openai/gpt-4.1")
+groq_client = Groq(api_key=GROQ_API_KEY)
+
 def ask(question: str, github_url: str):
     index = pc.Index(PINECONE_INDEX)
 
+    # Embed query
     q_vector = embed_texts([question])[0]
 
-    # search pinecone for top 5 most relevant chunks
-    results = index.query(vector=q_vector, top_k=7, namespace=get_namespace(github_url=github_url), include_metadata=True)
+    # Search Pinecone
+    results = index.query(
+        vector=q_vector,
+        top_k=7,
+        namespace=get_namespace(github_url),
+        include_metadata=True
+    )
 
+    # Build context
     context = "\n\n".join([
         f"File: {m['metadata']['source']}\n{m['metadata']['text']}"
         for m in results["matches"]
     ])
 
-    llm = sdk.model("openai/gpt-4o")
-    response = llm.run([
-        {
-            "role": "system",
-            "content": "You are a code assistant. Answer questions using only the provided code context. Always mention which file the answer comes from. Explain how each file gets connected to each other"
-        },
-        {
-            "role": "user",
-            "content": f"Context:\n{context}\n\nQuestion: {question}"
-        }
-    ])
+    # Groq LLM call
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a code assistant. Answer questions using only the provided code context. Always mention which file the answer comes from. Explain how each file connects."
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n{context}\n\nQuestion: {question}"
+            }
+        ]
+    )
 
-    if response.error:
-        raise RuntimeError(f"LLM error: {response.error}")
-
-    output = response.output
-    if isinstance(output, dict):
-        output = output.get("content") or str(output)
-    return output
+    return response.choices[0].message.content
 
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))

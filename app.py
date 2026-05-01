@@ -186,7 +186,7 @@ def api_embed(github_url):
     return r.json()
 
 def api_ask(github_url, question):
-    r = requests.post(f"{API}/rag/chat", json={"github_url": github_url, "question": question}, timeout=60)
+    r = requests.post(f"{API}/rag/chat", json={"github_url": github_url, "question": question}, timeout=180)
     r.raise_for_status()
     return r.json()
 
