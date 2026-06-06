@@ -1,12 +1,12 @@
-BYTEZ_API_KEY=
+BYTEZ_API_KEY=bytez_api_key_if_using_service (optional)
 
-GITHUB_API_KEY=
+GITHUB_API_KEY=if_not_using_temp_to_clone_repo (optional)
 
-PINECONE_API_KEY=
-PINECONE_INDEX=
-PINECONE_CLOUD=
-PINECONE_REGION=
+PINECONE_API_KEY=PC_api_key
+PINECONE_INDEX=index_name_to_store_vectors_db
+PINECONE_CLOUD=cloud_provider_aws_or_azure
+PINECONE_REGION=region_for_cloud_service
 
-GROQ_API_KEY=
+GROQ_API_KEY=groq_api_key_for_query
 
-BACKEND_URL=
+BACKEND_URL=localhost_or_server_url
